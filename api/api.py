@@ -135,7 +135,7 @@ def get_measurements():
         query = session.query(RawMeasurement).order_by(RawMeasurement.date.desc())
         if mac:
             query = query.filter(RawMeasurement.mac == mac.upper())
-        rows = query.limit(100).all()
+        rows = query.limit(100).all() # TO DO add pagination
 
         return jsonify(
             [

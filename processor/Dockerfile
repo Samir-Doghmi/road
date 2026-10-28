@@ -7,9 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-    
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY requirements.R .
+RUN Rscript requirements.R
 
 # Keep after RUN pip install ... to leverage Docker's cache, so that
 # RUN pip install is run only when requirements.txt changed, and not at every code update.
