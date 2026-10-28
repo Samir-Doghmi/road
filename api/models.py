@@ -3,9 +3,8 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
-
-class Measurement(Base):
-    __tablename__ = "measurements"
+class RawMeasurement(Base):
+    __tablename__ = "raw_measurements"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     mac = Column(String(32), nullable=False, index=True)

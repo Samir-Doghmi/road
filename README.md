@@ -1,87 +1,127 @@
-# Atmotube Ingestion Example
+# ROad
 
-A minimal, self-hosted example server that accepts air quality measurements
-from an Atmotube device (relayed via the phone app) and stores them in
-Postgres. It accepts the same request body as the production API, so a
-device/app that already sends data to Atmotube Cloud can be pointed at this
-server without any changes to the payload - just configure the device with
-this server's `/measurements` URL.
+## What is ROad?
 
-This is a reference implementation, not production-ready software: no
-retries, no rate limiting, no device registry, minimal validation.
+ROad is an infrastructure project designed to collect, ingest, and process environmental data from Atmotube devices, leveraging automated R scripts for advanced data analysis.
 
-## What it does
+(Samir should expand this section)
 
-- `POST /measurements` — accepts a batch of raw sensor readings and stores
-  each row as a record in the `measurements` Postgres table.
-- `GET /measurements?mac=<MAC>` — lists the most recent stored readings
-  (useful for a quick sanity check without opening a DB client).
-- `GET /health` — basic healthcheck.
+### About This Repository
 
-## Request format
+This repository contains all the code related to the ROad project. It defines the complete infrastructure used to:
 
-```
-POST /measurements
-Authorization: Bearer <API_KEY>
-Content-Type: application/json
+1. Collect and ingest real-time data from Atmotube devices.
+2. Validate and store raw measurements in a PostgreSQL database.
+3. Queue and execute R scripts for data processing and analysis.
 
-{
-  "mac": "AA:BB:CC:DD:EE:FF",
-  "data": [
-    [0, 1750000000, 22.5, 45.0, 1013.0, 50, 120.0, 20, 450, 3.2, 8.1, 10.4, null, null, null, null, 87, 0]
-  ]
-}
-```
+## Architecture
 
-Each row in `data` is a fixed-position array, one value per index:
+The architecture consists of two core services:
 
-```
-0  dtype
-1  timestamp (unix seconds)
-2  temperature
-3  humidity
-4  pressure
-5  voc_index
-6  voc
-7  nox_index
-8  co2
-9  pm1
-10 pm25
-11 pm10
-12 lat
-13 lon
-14 altitude
-15 pos_error
-16 battery
-17 flags
+1. **Ingestor (Web Server):** Ingests data from registered Atmotube devices, validates incoming payloads, and persists them to PostgreSQL.
+2. **Processor (Job Executor):** Receives R scripts via a web API, queues them, and returns execution results upon request.
+
+(Insert Architecture Diagram Here)
+
+## How to Start and Stop via Docker Compose
+
+To start all required services locally or on a deployment machine, use Docker Compose.
+
+1. Clone the repository and navigate to the root directory.
+2. Create your `.env` file by copying the provided example template:
+
+    ```bash
+    cp .env.example .env
+    # Edit your .env file with your specific configuration values
+    ```
+
+3. Build and start the services in detached mode:
+
+    ```bash
+    docker compose up --build -d
+    ```
+
+To stop all services and remove associated volumes (clearing all stored data):
+
+```bash
+docker compose down -v
 ```
 
-`dtype` says which extra fields (if any) are appended after index 17, and
-therefore how long the row is expected to be:
+## Usage
 
-```
-0  normal            - no extra fields, row is exactly 18 values
-1  pm_extended       - adds particle-count/size fields, row is 23 values
-2  gps_extended      - adds satellite/signal fields, row is 24 values
-3  pm_gps_extended   - adds both of the above, row is 29 values
-```
+### Service1: ingestor
 
-A row with an unrecognized `dtype`, or whose length doesn't match what that
-`dtype` expects, is skipped. This example parses and stores all four
-variants:
+The ingestor exposes a REST API that official Atmotube applications (or configured devices) can use to send raw data directly, bypassing Atmo's cloud completely.
 
-- **pm_extended** (indices 18-22): `pm05_num`, `pm1_num`, `pm25_num`,
-  `pm10_num`, `pm_size`.
-- **gps_extended** (indices 18-23, or 23-28 when `pm_extended` fields come
-  first for `pm_gps_extended`): `snr0_19`, `snr20_49`, `snr50_99`,
-  `snr_avg`, `satellites_fixed`, `satellites_in_view`.
+Available endpoints:
 
-Every stored row also keeps `dtype` and `position_error` (core index 15),
-which the earlier version of this example dropped.
+- `POST /measurements`: used from the Atmotubes to send raw data. Requires
+- a valid API key, so unauthorized requests are discarded.
+- `GET /measurements?mac=<DEVICE_MAC>`: retrieves the last 100 measurements
+collected from a the Atmotube specified via the query parameter.
+- `GET /health`: health-check endpoint. Returns `{"status": "ok"}` if the service
+is active.
 
-Response:
+#### ingestor examples
 
-```json
-{ "items": 1 }
+Check service health:
+
+```bash
+curl "http://localhost:8000/health"
 ```
 
+Retrieve last 100 measurements:
+
+```bash
+curl "http://localhost:8000/measurements?mac=AA:BB:CC:DD:EE:FF"
+```
+
+### Service2: processor
+
+The processor service executes R scripts on demand. If these scripts require
+data from the database, they must fetch it themselves by establishing
+and managing their own database connection.
+
+Available endpoints:
+
+- `POST /jobs`: sends an R script and returns the job ID. The script code must
+be provided in the request body under the `"code"` field.
+Requires a valid processor API key, so unauthorized requests are discarded.
+- `GET /jobs/<job_id>`: retrieves the status of the job matching `<job_id>`.
+- `GET /jobs/<job_id>/files`: downloads all files produced by the job with
+ID `<job_id>`.
+- `GET /jobs/<job_id>/files/<filename>`: downloads the specified `<filename>`
+produced by the job with ID `<job_id>`.
+- `GET /health`: health-check endpoint. Returns `{"status": "ok"}` if the service
+is active.
+
+#### processor examples
+
+Post a job:
+
+```bash
+curl -X POST "http://localhost:8001/jobs"   -H "Content-Type: application/json"   -d '{
+    "code": "x <- c(1, 2, 3, 4, 5); y <- x * 2; df <- data.frame(x, y); write.csv(df, \"test_result.csv\", row.names = FALSE); print(\"Execution completed!\")"
+  }'
+```
+
+To post a job using the content of a local `script.R` file:
+
+```bash
+curl -X POST "http://localhost:8001/jobs" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg code "$(cat script.R)" '{code: $code}')"
+```
+
+Get job status:
+
+```bash
+curl "http://localhost:8001/jobs/b13ef28a-b31c-4b6a-84cb-68c2eb357ce5"
+```
+
+Download all files produced by a job:
+
+```bash
+curl "http://localhost:8001/jobs/b13ef28a-b31c-4b6a-84cb-68c2eb357ce5/files"
+
+```

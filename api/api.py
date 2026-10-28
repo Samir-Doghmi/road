@@ -5,16 +5,16 @@ from flask import Flask, jsonify, request
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from models import Base, Measurement
+from models import RawMeasurement
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/measurements"
-)
-API_KEY = os.environ.get("API_KEY", "changeme")
+# If one of these two instructions fail due to the required env variables
+# missing from the environment, then the program fails as expected.
+# It is a best-practice in production.
+DATABASE_URL = os.environ["DATABASE_URL"]
+API_KEY = os.environ["API_KEY"]
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
-Base.metadata.create_all(engine)
 
 app = Flask(__name__)
 
@@ -26,7 +26,6 @@ EXPECTED_SIZES = {
     2: 24,
     3: 29,
 }
-
 
 def is_authorized():
     auth_header = request.headers.get("Authorization", "")
@@ -86,7 +85,7 @@ def post_measurements():
                 ) = row[gps_index:gps_index + 6]
 
             session.add(
-                Measurement(
+                RawMeasurement(
                     mac=mac,
                     date=datetime.fromtimestamp(ts, tz=timezone.utc),
                     dtype=dtype,
@@ -133,10 +132,10 @@ def get_measurements():
 
     session = SessionLocal()
     try:
-        query = session.query(Measurement).order_by(Measurement.date.desc())
+        query = session.query(RawMeasurement).order_by(RawMeasurement.date.desc())
         if mac:
-            query = query.filter(Measurement.mac == mac.upper())
-        rows = query.limit(100).all()
+            query = query.filter(RawMeasurement.mac == mac.upper())
+        rows = query.limit(100).all() # TO DO add pagination
 
         return jsonify(
             [
@@ -183,7 +182,3 @@ def get_measurements():
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
