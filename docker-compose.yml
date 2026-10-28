@@ -43,16 +43,20 @@ services:
   #  depends_on:
   #    - api
 
-  # TO DO
-  #processor:
-  #  build: ./processor
-  #  container_name: road_processor
-  #  environment:
-  #    - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-  #  depends_on:
-  #    postgres:
-  #      condition: service_healthy
-  #  restart: unless-stopped
+  processor:
+    build: ./processor
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      API_KEY: ${PROCESSOR_KEY}
+      PORT: 8000
+    ports:
+      - "8001:8000"
+    volumes:
+      - ${PROCESSOR_OUTPUT_DIR}:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

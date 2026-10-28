@@ -1,7 +1,7 @@
 # ROad
 ## What is ROad?
 
-## 
+##
 A minimal, self-hosted example server that accepts air quality measurements
 from an Atmotube device (relayed via the phone app) and stores them in
 Postgres. It accepts the same request body as the production API, so a
@@ -86,3 +86,33 @@ Response:
 ```json
 { "items": 1 }
 ```
+
+
+
+# R script
+se dentro a uno script voglio usare qualcosa che non è in requirements.R
+
+Funzione per installare automaticamente i pacchetti mancanti al volo
+install_if_missing <- function(p) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    install.packages(p, repos = "https://cloud.r-project.org")
+  }
+  library(p, character.only = TRUE)
+}
+
+Elenca qui tutte le librerie di cui ha bisogno lo script
+install_if_missing("DBI")
+install_if_missing("RPostgres")
+install_if_missing("dplyr")  # <--- Aggiungi qui qualsiasi nuova libreria al volo!
+
+
+
+
+
+
+curl -X POST http://localhost:8001/jobs   -H "Content-Type: application/json"   -d '{
+    "code": "x <- c(1, 2, 3, 4, 5); y <- x * 2; df <- data.frame(x, y); write.csv(df, \"risultato_test.csv\", row.names = FALSE); print(\"Elaborazione completata con successo!\")"
+  }'
+
+
+curl http://localhost:8001/jobs/b13ef28a-b31c-4b6a-84cb-68c2eb357ce5
