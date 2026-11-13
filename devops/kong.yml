@@ -1,0 +1,154 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: ingestor-api
+    url: http://api:8000
+    routes:
+      - name: add-measurements
+        paths:
+          - /measurements
+        methods:
+          - GET
+          - POST
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("authorization")
+                  if auth and auth:find("^Bearer%s+") then
+                    local clean_key = auth:gsub("^Bearer%s+", "")
+                    kong.service.request.set_header("authorization", clean_key)
+                  end
+          - name: key-auth
+            config:
+              key_names:
+                - authorization
+          - name: acl
+            config:
+              allow:
+                - atmotube
+                - admin
+
+      - name: ingestor-health-check
+        paths:
+          - /health
+        methods:
+          - GET
+        strip_path: false
+
+  - name: processor-api
+    url: http://processor:8000
+    routes:
+      - name: add-job
+        paths:
+          - /jobs
+        methods:
+          - POST
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("authorization")
+                  if auth and auth:find("^Bearer%s+") then
+                    local clean_key = auth:gsub("^Bearer%s+", "")
+                    kong.service.request.set_header("authorization", clean_key)
+                  end
+          - name: key-auth
+            config:
+              key_names:
+                - authorization
+          - name: acl
+            config:
+              allow:
+                - researcher
+                - admin
+
+      - name: get-job-status
+        paths:
+          - /jobs/
+        methods:
+          - GET
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("authorization")
+                  if auth and auth:find("^Bearer%s+") then
+                    local clean_key = auth:gsub("^Bearer%s+", "")
+                    kong.service.request.set_header("authorization", clean_key)
+                  end
+          - name: key-auth
+            config:
+              key_names:
+                - authorization
+          - name: acl
+            config:
+              allow:
+                - researcher
+                - admin
+
+      - name: download-all-job-files
+        paths:
+          - ~/jobs/[^/]+/files$
+        methods:
+          - GET
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("authorization")
+                  if auth and auth:find("^Bearer%s+") then
+                    local clean_key = auth:gsub("^Bearer%s+", "")
+                    kong.service.request.set_header("authorization", clean_key)
+                  end
+          - name: key-auth
+            config:
+              key_names:
+                - authorization
+          - name: acl
+            config:
+              allow:
+                - researcher
+                - admin
+
+      - name: download-single-job-file
+        paths:
+          - ~/jobs/[^/]+/files/.+
+        methods:
+          - GET
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("authorization")
+                  if auth and auth:find("^Bearer%s+") then
+                    local clean_key = auth:gsub("^Bearer%s+", "")
+                    kong.service.request.set_header("authorization", clean_key)
+                  end
+          - name: key-auth
+            config:
+              key_names:
+                - authorization
+          - name: acl
+            config:
+              allow:
+                - researcher
+                - admin
+
+      - name: proccessor-health-check
+        paths:
+          - /health
+        methods:
+          - GET
+        strip_path: false

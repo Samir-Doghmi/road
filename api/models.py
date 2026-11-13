@@ -1,10 +1,14 @@
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.orm import declarative_base
+import os
 
 Base = declarative_base()
 
+DATABASE_SCHEMA = os.environ["MEASUREMENTS_SCHEMA"]
+
 class RawMeasurement(Base):
     __tablename__ = "raw_measurements"
+    __table_args__ = {"schema": DATABASE_SCHEMA}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     mac = Column(String(32), nullable=False, index=True)

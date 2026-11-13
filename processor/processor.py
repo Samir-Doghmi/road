@@ -15,7 +15,6 @@ from models import Job
 
 app = Flask(__name__)
 
-PROCESSOR_KEY = os.environ["PROCESSOR_KEY"]
 PROCESSOR_MAX_CONCURRENT_JOBS = int(os.environ.get("PROCESSOR_MAX_CONCURRENT_JOBS", "3"))
 
 executor = ThreadPoolExecutor(max_workers=PROCESSOR_MAX_CONCURRENT_JOBS)
