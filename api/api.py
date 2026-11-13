@@ -11,7 +11,6 @@ from models import RawMeasurement
 # missing from the environment, then the program fails as expected.
 # It is a best-practice in production.
 DATABASE_URL = os.environ["DATABASE_URL"]
-API_KEY = os.environ["API_KEY"]
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -27,19 +26,8 @@ EXPECTED_SIZES = {
     3: 29,
 }
 
-def is_authorized():
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return False
-    token = auth_header.split(" ", 1)[1]
-    return token == API_KEY
-
-
 @app.post("/measurements")
 def post_measurements():
-    if not is_authorized():
-        return jsonify({"error": "Unauthorized"}), 401
-
     body = request.get_json(silent=True) or {}
     mac = body.get("mac")
     rows = body.get("data")
