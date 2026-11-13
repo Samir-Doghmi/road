@@ -1,0 +1,64 @@
+version: "3"
+agent:
+  authtoken: YOUR_NGROK_AUTHTOKEN_HERE
+
+endpoints:
+  - name: road-api
+    url: https://your-custom-subdomain.ngrok-free.app
+    upstream:
+      url: 8000
+    traffic_policy:
+      on_http_request:
+        # Block AI crawlers, SEO tools, and scrapers
+        - expressions:
+            - "req.user_agent.matches('(?i)gptbot|oai-searchbot|claudebot|perplexitybot|ccbot|amazonbot|bytespider|meta-externalagent|ahrefsbot|semrushbot|mj12bot|dotbot|scrapy')"
+          actions:
+            - type: deny
+
+        # Rate limit per visitor
+        - actions:
+            - type: rate-limit
+              config:
+                name: per-visitor
+                algorithm: sliding_window
+                capacity: 90
+                rate: 60s
+                bucket_key:
+                  - conn.client_ip
+
+        # Basic Authentication
+        - actions:
+            - type: basic-auth
+              config:
+                credentials:
+                  - "user:password"
+
+  - name: r-processor
+    url: https://your-custom-subdomain.ngrok-free.app
+    upstream:
+      url: 8001
+    traffic_policy:
+      on_http_request:
+        # Block AI crawlers, SEO tools, and scrapers
+        - expressions:
+            - "req.user_agent.matches('(?i)gptbot|oai-searchbot|claudebot|perplexitybot|ccbot|amazonbot|bytespider|meta-externalagent|ahrefsbot|semrushbot|mj12bot|dotbot|scrapy')"
+          actions:
+            - type: deny
+
+        # Rate limit per visitor
+        - actions:
+            - type: rate-limit
+              config:
+                name: per-visitor
+                algorithm: sliding_window
+                capacity: 5
+                rate: 60s
+                bucket_key:
+                  - conn.client_ip
+
+        # Basic Authentication
+        - actions:
+            - type: basic-auth
+              config:
+                credentials:
+                  - "user:password"
