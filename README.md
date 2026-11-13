@@ -67,13 +67,14 @@ is active.
 Check service health:
 
 ```bash
-curl "http://localhost:8000/health"
+curl "http://road.disat.unimib.it/health"
 ```
 
 Retrieve last 100 measurements:
 
 ```bash
-curl "http://localhost:8000/measurements?mac=AA:BB:CC:DD:EE:FF"
+curl "http://road.disat.unimib.it/measurements?mac=AA:BB:CC:DD:EE:FF" \
+    -H "Authorization: Bearer <api-key>"
 ```
 
 ### Service2: processor
@@ -108,20 +109,51 @@ curl -X POST "http://localhost:8001/jobs"   -H "Content-Type: application/json" 
 To post a job using the content of a local `script.R` file:
 
 ```bash
-curl -X POST "http://localhost:8001/jobs" \
+curl -X POST "https://road.disat.unimib.it/jobs" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api-key>" \
   -d "$(jq -n --arg code "$(cat script.R)" '{code: $code}')"
 ```
 
 Get job status:
 
 ```bash
-curl "http://localhost:8001/jobs/b13ef28a-b31c-4b6a-84cb-68c2eb357ce5"
+curl "https://road.disat.unimib.it/jobs/<job-id>" \
+  -H "Authorization: Bearer <api-key>" \
 ```
 
 Download all files produced by a job:
 
 ```bash
-curl "http://localhost:8001/jobs/b13ef28a-b31c-4b6a-84cb-68c2eb357ce5/files"
+curl "https://road.disat.unimib.it/jobs/<job-id>/files" \
+  -H "Authorization: Bearer <api-key>"
+```
 
+### Kong
+
+The ROad infrastructure uses kong as the API gateway. It can ease the creation,
+assignment and management of keys, otherwise manually implemented by the application.
+It can also group users in groups, for a more fine-grained ACL.
+
+> [!WARNING]
+> Port 8001, the admin/management port, does not implement a login/identity check,
+> and everyone could connect and modify usernames and keys. To secure the infrastructure,
+> port 8001 is only available from the machine hosting the kong container.
+
+To create a new user:
+```bash
+curl -i -X POST http://localhost:8001/consumers \
+  --data username=<new-username>
+```
+
+To provision a new key to a user:
+```bash
+curl -i -X POST http://localhost:8001/consumers/<username>/key-auth
+```
+Returns the generated API key if successful.
+
+Add a user to a group.
+```bash
+curl -i -X POST http://localhost:8001/consumers/<username>/acls \
+  --data "group=<group-name>"
 ```
