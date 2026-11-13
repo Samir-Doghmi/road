@@ -98,7 +98,7 @@ services:
       - "8000:8000"  # Public proxy port
       - "127.0.0.1:8001:8001"  # Admin API port (keep internal or secure in production)
     volumes:
-      - ./devops/kong.yml:/etc/kong/kong.yml:Z
+      - ./devops/config/kong.yml:/etc/kong/kong.yml:Z
     command: sh -c "kong config db_import /etc/kong/kong.yml && kong start"
     depends_on:
       postgres:
