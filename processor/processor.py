@@ -26,6 +26,13 @@ SessionLocal = sessionmaker(bind=engine)
 
 BASE_OUTPUT_DIR = Path("/app/output")
 
+def is_authorized():
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False
+    token = auth_header.split(" ", 1)[1]
+    return token == PROCESSOR_KEY
+
 def is_code_safe(r_code: str) -> bool:
     dangerous_patterns = [r"\.\./", r"file\.remove\s*\(", r"unlink\s*\(", r"setwd\s*\("]
     for pattern in dangerous_patterns:
@@ -95,6 +102,9 @@ def run_r_script_background(job_id, r_code):
 
 @app.post("/jobs")
 def submit_job():
+    if not is_authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
     body = request.get_json(silent=True) or {}
     r_code = body.get("code")
 
@@ -119,6 +129,9 @@ def submit_job():
 
 @app.get("/jobs/<job_id>")
 def get_job_status(job_id):
+    if not is_authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
     session = SessionLocal()
     try:
         job = session.query(Job).filter_by(job_id=job_id).first()
@@ -136,6 +149,9 @@ def get_job_status(job_id):
 
 @app.get("/jobs/<job_id>/files/<filename>")
 def download_job_file(job_id, filename):
+    if not is_authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
     job_dir = BASE_OUTPUT_DIR / job_id
     if not job_dir.exists():
         return jsonify({"error": "Job not found"}), 404
@@ -143,6 +159,9 @@ def download_job_file(job_id, filename):
 
 @app.get("/jobs/<job_id>/files")
 def download_all_job_files(job_id):
+    if not is_authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
     job_dir = BASE_OUTPUT_DIR / job_id
     if not job_dir.exists():
         return jsonify({"error": "Job not found"}), 404
