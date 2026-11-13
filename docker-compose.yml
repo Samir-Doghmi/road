@@ -46,8 +46,10 @@ services:
   processor:
     build: ./processor
     environment:
+      PYTHONUNBUFFERED: 1
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      API_KEY: ${PROCESSOR_KEY}
+      PROCESSOR_KEY: ${PROCESSOR_KEY}
+      PROCESSOR_MAX_CONCURRENT_JOBS: ${PROCESSOR_MAX_CONCURRENT_JOBS}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -55,7 +57,7 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      - ${PROCESSOR_OUTPUT_DIR}:/app/output
+      - ${PROCESSOR_OUTPUT_DIR}:/app/output:Z,U
     depends_on:
       postgres:
         condition: service_healthy

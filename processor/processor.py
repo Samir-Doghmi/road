@@ -2,6 +2,8 @@ import uuid
 import subprocess
 import zipfile
 import re
+import traceback
+import logging
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from concurrent.futures import ThreadPoolExecutor
@@ -14,11 +16,11 @@ from models import Job
 app = Flask(__name__)
 
 PROCESSOR_KEY = os.environ["PROCESSOR_KEY"]
-PROCESSOR_MAX_CONCURRENT_JOBS = os.environ["PROCESSOR_MAX_CONCURRENT_JOBS"]
+PROCESSOR_MAX_CONCURRENT_JOBS = int(os.environ.get("PROCESSOR_MAX_CONCURRENT_JOBS", "3"))
 
 executor = ThreadPoolExecutor(max_workers=PROCESSOR_MAX_CONCURRENT_JOBS)
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@postgres:5432/measurements")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://pguser:pgpassword@postgres:5432/pgdb")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
@@ -32,24 +34,24 @@ def is_code_safe(r_code: str) -> bool:
     return True
 
 def run_r_script_background(job_id, r_code):
-    session = SessionLocal()
     try:
-        job = session.query(Job).filter_by(job_id=job_id).first()
-        if job:
-            job.status = "running"
-            session.commit()
-    finally:
-        session.close()
+        session = SessionLocal()
+        try:
+            job = session.query(Job).filter_by(job_id=job_id).first()
+            if job:
+                job.status = "running"
+                session.commit()
+        finally:
+            session.close()
 
-    job_dir = BASE_OUTPUT_DIR / job_id
-    job_dir.mkdir(parents=True, exist_ok=True)
+        job_dir = BASE_OUTPUT_DIR / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
 
-    script_path = job_dir / "script.R"
-    stdout_path = job_dir / "stdout.txt"
-    stderr_path = job_dir / "stderr.txt"
-    script_path.write_text(r_code, encoding="utf-8")
+        script_path = job_dir / "script.R"
+        stdout_path = job_dir / "stdout.txt"
+        stderr_path = job_dir / "stderr.txt"
+        script_path.write_text(r_code, encoding="utf-8")
 
-    try:
         result = subprocess.run(
             ["Rscript", script_path.name],
             cwd=str(job_dir),
@@ -62,25 +64,34 @@ def run_r_script_background(job_id, r_code):
         stderr_path.write_text(result.stderr, encoding="utf-8")
 
         session = SessionLocal()
-        job = session.query(Job).filter_by(job_id=job_id).first()
-        if job:
-            if result.returncode == 0:
-                job.status = "completed"
-                files = [f.name for f in job_dir.iterdir() if f.is_file()]
-                job.output_files = ",".join(files)
-            else:
-                job.status = "failed"
-                job.error = result.stderr
-            session.commit()
+        try:
+            job = session.query(Job).filter_by(job_id=job_id).first()
+            if job:
+                if result.returncode == 0:
+                    job.status = "completed"
+                    files = [f.name for f in job_dir.iterdir() if f.is_file()]
+                    job.output_files = ",".join(files)
+                else:
+                    job.status = "failed"
+                    job.error = result.stderr
+                session.commit()
+        finally:
+            session.close()
+
     except Exception as e:
-        session = SessionLocal()
-        job = session.query(Job).filter_by(job_id=job_id).first()
-        if job:
-            job.status = "failed"
-            job.error = str(e)
-            session.commit()
-    finally:
-        session.close()
+        print(f"CRITICAL ERROR in background job {job_id}: {str(e)}")
+        traceback.print_exc()
+
+        try:
+            session = SessionLocal()
+            job = session.query(Job).filter_by(job_id=job_id).first()
+            if job:
+                job.status = "failed"
+                job.error = str(e)
+                session.commit()
+            session.close()
+        except Exception as db_err:
+            print(f"Failed to update job status to failed: {db_err}")
 
 @app.post("/jobs")
 def submit_job():
