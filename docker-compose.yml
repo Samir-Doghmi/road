@@ -82,6 +82,26 @@ services:
         condition: service_healthy
     restart: "no"
 
+  kong-config-update:
+    image: kong
+    environment:
+      KONG_DATABASE: "postgres"
+      KONG_PG_HOST: "postgres"
+      KONG_PG_PORT: "5432"
+      KONG_PG_DATABASE: "${POSTGRES_DB}"
+      KONG_PG_USER: "${KONG_DB_USER}"
+      KONG_PG_PASSWORD: "${KONG_DB_PASSWORD}"
+      KONG_PG_SCHEMA: "${KONG_DB_SCHEMA}"
+    volumes:
+      - ./devops/config/kong.yml:/etc/kong/kong.yml:Z
+    command: sh -c "kong config db_import /etc/kong/kong.yml"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kong-migration:
+        condition: service_completed_successfully
+    restart: "no"
+
   kong:
     image: kong
     environment:
@@ -102,13 +122,10 @@ services:
       - "80:8000"  # Public proxy port
       - "443:8443"  # HTTPS proxy
       - "127.0.0.1:8001:8001"  # Admin API port (keep internal or secure in production)
-    volumes:
-      - ./devops/config/kong.yml:/etc/kong/kong.yml:Z
-    command: sh -c "kong config db_import /etc/kong/kong.yml && exec kong start --vv"
     depends_on:
       postgres:
         condition: service_healthy
-      kong-migration:
+      kong-config-update:
         condition: service_completed_successfully
     restart: unless-stopped
 
