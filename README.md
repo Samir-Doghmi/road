@@ -64,6 +64,42 @@ is active.
 
 #### ingestor examples
 
+Send a single timestamped reading from all sensors:
+```bash
+    curl -v -X POST https://road.disat.unimib.it/measurements \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api-key>" \
+  -d '{
+    "mac": "AA:BB:CC:DD:EE:FF",
+    "data": [
+      [
+        0,
+        1794910800,
+        23.5,
+        45.2,
+        1013.25,
+        85,
+        120,
+        12,
+        450,
+        3.5,
+        7.2,
+        9.8,
+        45.5142,
+        9.2101,
+        120.0,
+        5.0,
+        95,
+        0
+      ]
+    ]
+  }'
+```
+
+> [!NOTE]
+> If you are using a self-signed certificate for debug purposes, use curl
+> with the flag `-vk` instead of `-v`.
+
 Check service health:
 
 ```bash

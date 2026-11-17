@@ -1,0 +1,3 @@
+road.disat.unimib.it {
+    reverse_proxy kong:8000
+}

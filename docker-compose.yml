@@ -2,7 +2,7 @@ name: road
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: docker.io/library/postgres:15-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
 
   kong-migration:
-    image: kong
+    image: docker.io/library/kong
     environment:
       KONG_DATABASE: "postgres"
       KONG_PG_HOST: "postgres"
@@ -83,7 +83,7 @@ services:
     restart: "no"
 
   kong-config-update:
-    image: kong
+    image: docker.io/library/kong
     environment:
       KONG_DATABASE: "postgres"
       KONG_PG_HOST: "postgres"
@@ -103,7 +103,7 @@ services:
     restart: "no"
 
   kong:
-    image: kong
+    image: docker.io/library/kong
     environment:
       KONG_DATABASE: "postgres"
       KONG_PG_HOST: "postgres"
@@ -117,11 +117,8 @@ services:
       KONG_PROXY_ERROR_LOG: "/dev/stderr"
       KONG_ADMIN_ERROR_LOG: "/dev/stderr"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001" # Enables Admin API internally
-      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl" # Enables HTTPS on port 8443
     ports:
-      - "80:8000"  # Public proxy port
-      - "443:8443"  # HTTPS proxy
-      - "127.0.0.1:8001:8001"  # Admin API port (keep internal or secure in production)
+       - "127.0.0.1:8001:8001"  # Admin API port (keep internal or secure in production)
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,5 +126,19 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  caddy:
+    image: docker.io/library/caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443: 443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:Z
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
