@@ -23,9 +23,9 @@ The architecture consists of two core services:
 
 (Insert Architecture Diagram Here)
 
-## How to Start and Stop via Docker Compose
+## How to Start and Stop via Podman
 
-To start all required services locally or on a deployment machine, use Docker Compose.
+To start all required services locally or on a deployment machine, use Podman Compose.
 
 1. Clone the repository and navigate to the root directory.
 2. Create your `.env` file by copying the provided example template:
@@ -38,13 +38,23 @@ To start all required services locally or on a deployment machine, use Docker Co
 3. Build and start the services in detached mode:
 
     ```bash
-    docker compose up --build -d
+    podman compose up --build -d
     ```
+
+> [!WARNING]
+> To handle HTTPS connections, this repo deploys Caddy, which listens on ports 80 (HTTP)
+> and 443 (HTTPS). Ports below 1024 are typically reserved by the OS and
+> require additional permissions to bind to. To temporarily
+> allow binding to ports below 1024:
+>
+> ```bash
+> sudo sysctl net.ipv4.ip_unprivileged_port_start=0
+> ```
 
 To stop all services and remove associated volumes (clearing all stored data):
 
 ```bash
-docker compose down -v
+podman compose down -v
 ```
 
 ## Usage
